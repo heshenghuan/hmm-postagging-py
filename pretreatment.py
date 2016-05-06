@@ -103,25 +103,30 @@ def saveHMM(INIT_PROBFILE='ctb7_init.txt', TRAN_PROBFILE='ctb7_tran.txt',
 
 
 def calcInitProb(INIT_PROBFILE='ctb7_init.txt', smooth=0):
-    """
-    :param
-    """
     i_input = codecs.open(INIT_PROBFILE, mode='r', encoding='utf8')
-    i_out = codecs.open('ctb7_initprob.txt')
+    i_out = codecs.open('ctb7_initprob.txt', mode='w', encoding='utf8')
     print "Calculate the start probability."
     is_first_line = True
     freq_sum = 0
     tag_freq = {}
+    good_Turing_freq = {}
+    for i in range(9):
+        good_Turing_freq[i] = 0
     for line in i_input.readlines():
         if is_first_line:
             is_first_line = False
             continue
         raw = line.strip().split()
-        tag_freq[raw[0]] = int(raw[1])
-        freq_sum += int(raw[1])
+        num = int(raw[1])
+        tag_freq[raw[0]] = num
+        freq_sum += num
+        if num <= 8:
+            good_Turing_freq[num] += 1
 
+    print good_Turing_freq
     print "Writing start log_probability to the file."
     i_out.write("#INIT_PROB log_probability\n")
+
     for tag in tag_freq.keys():
         i_out.write(tag + ' ')
         if smooth == 0:
@@ -138,15 +143,46 @@ def calcInitProb(INIT_PROBFILE='ctb7_init.txt', smooth=0):
             i_out.write('%.4f\n' % log_p)
         elif smooth == 2:
             # Good-Turing smoothing
+            break
 
+# def calcLogProb(INIT_PROBFILE='ctb7_init.txt', TRAN_PROBFILE='ctb7_tran.txt',
+#                 TAGFREQFILE='ctb7_tagFreq.txt', WORDFREQFILE='ctb7_words.txt'):
+#     """
+#     """
+#     return
 
-def calcLogProb(INIT_PROBFILE='ctb7_init.txt', TRAN_PROBFILE='ctb7_tran.txt',
-                TAGFREQFILE='ctb7_tagFreq.txt', WORDFREQFILE='ctb7_words.txt'):
-    """
-    """
-    return 
+def curveFit(data):
+    lnx = []
+    lny = []
+    for i in range(1, 9):
+        if data[i] != 0:
+            lnx.append(math.log(i))
+            lny.append(math.log(data[i]))
+    mean_x = sum(lnx)/len(lnx)
+    mean_y = sum(lny)/len(lny)
+    lxx = sum((x - mean_x)**2 for x in lnx)
+    lxy = 0.0
+    for i in range(len(lnx)):
+        lxy += (lnx[i] - mean_x) * (lny[i] - mean_y)
 
+    print "lnx:", lnx
+    print "lny:", lny
+    print "lxx:", lxx
+    print "lxy:", lxy
+    b1 = lxy / lxx
+    b0 = mean_y - mean_x * b1
+    print "b0: ", b0
+    print "b1: ", b1
+    return [math.exp(b0), b1]
 
 if __name__ == '__main__':
-    getHmmModelInfo()
-    saveHMM()
+    # getHmmModelInfo()
+    # saveHMM()
+    # calcInitProb(smooth=1)
+    a = {0: 9, 1: 2, 2: 0, 3: 1, 4: 1, 5: 1, 6: 1, 7: 0, 8: 0}
+    print a
+    b = curveFit(a)
+    a[2] = b[0] * math.pow(2, b[1])
+    a[7] = b[0] * math.pow(7, b[1])
+    a[8] = b[0] * math.pow(8, b[1])
+    print a
