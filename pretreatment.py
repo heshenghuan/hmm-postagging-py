@@ -107,11 +107,11 @@ def calcInitProb(INIT_PROBFILE='ctb7_init.txt', smooth=0):
     i_out = codecs.open('ctb7_initprob.txt', mode='w', encoding='utf8')
     print "Calculate the start probability."
     is_first_line = True
-    freq_sum = 0
+    freq_sum = 0.
     tag_freq = {}
     good_Turing_freq = {}
-    for i in range(9):
-        good_Turing_freq[i] = 0
+    for i in range(11):
+        good_Turing_freq[i] = 0.
     for line in i_input.readlines():
         if is_first_line:
             is_first_line = False
@@ -124,6 +124,19 @@ def calcInitProb(INIT_PROBFILE='ctb7_init.txt', smooth=0):
             good_Turing_freq[num] += 1
 
     print good_Turing_freq
+    if smooth == 2:
+        # Good-Turing smoothing, need to fit the gap between freq
+        theta = curveFit(good_Turing_freq)
+        for i in range(1, 11):
+            if good_Turing_freq[i] == 0:
+                good_Turing_freq[i] = theta[0] * math.pow(i, theta[1])
+        # Print the freq after fit gap
+        print good_Turing_freq
+        dr = [0.0]
+        for i range(1, 10):
+            r = (i + 1) * good_Turing_freq[i+1] / good_Turing_freq[i]
+            dr[0] += good_Turing_freq[i] - r
+            dr.append(r)
     print "Writing start log_probability to the file."
     i_out.write("#INIT_PROB log_probability\n")
 
@@ -143,7 +156,11 @@ def calcInitProb(INIT_PROBFILE='ctb7_init.txt', smooth=0):
             i_out.write('%.4f\n' % log_p)
         elif smooth == 2:
             # Good-Turing smoothing
-            break
+            if tag_freq[tag] < 10:
+                freq = tag_freq[tag]
+                i_out.write('%.4f\n' % (math.log(dr[freq] / freq_sum)))
+            else:
+                i_out.write('%.4f\n' % (math.log(freq / freq_sum)))
 
 # def calcLogProb(INIT_PROBFILE='ctb7_init.txt', TRAN_PROBFILE='ctb7_tran.txt',
 #                 TAGFREQFILE='ctb7_tagFreq.txt', WORDFREQFILE='ctb7_words.txt'):
@@ -154,7 +171,7 @@ def calcInitProb(INIT_PROBFILE='ctb7_init.txt', smooth=0):
 def curveFit(data):
     lnx = []
     lny = []
-    for i in range(1, 9):
+    for i in range(1, 11):
         if data[i] != 0:
             lnx.append(math.log(i))
             lny.append(math.log(data[i]))
