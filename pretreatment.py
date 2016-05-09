@@ -128,16 +128,17 @@ def calcInitProb(INIT_PROBFILE='ctb7_init.txt', smooth=0):
         # Good-Turing smoothing, need to fit the gap between freq
         theta = curveFit(good_Turing_freq)
         for i in range(1, 11):
-            if good_Turing_freq[i] == 0:
-                good_Turing_freq[i] = theta[0] * math.pow(i, theta[1])
+            # if good_Turing_freq[i] == 0:
+            good_Turing_freq[i] = theta[0] * math.pow(i, theta[1])
         # Print the freq after fit gap
         # print good_Turing_freq
         dr = [0.0]
         for i in range(1, 10):
             r = (i) * good_Turing_freq[i + 1] / good_Turing_freq[i]
-            dr[0] += (i - r)
+            dr[0] += (i - r) / i
             dr.append(r)
             # print "%d: r=%.4f g=%.4f" % (i, r, good_Turing_freq[i])
+    # print dr
     print "Writing start log_probability to the file."
     i_out.write("#INIT_PROB log_probability\n")
 
