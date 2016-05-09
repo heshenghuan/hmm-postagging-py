@@ -120,10 +120,10 @@ def calcInitProb(INIT_PROBFILE='ctb7_init.txt', smooth=0):
         num = int(raw[1])
         tag_freq[raw[0]] = num
         freq_sum += num
-        if num <= 8:
+        if num <= 10:
             good_Turing_freq[num] += 1
 
-    print good_Turing_freq
+    # print good_Turing_freq
     if smooth == 2:
         # Good-Turing smoothing, need to fit the gap between freq
         theta = curveFit(good_Turing_freq)
@@ -131,42 +131,45 @@ def calcInitProb(INIT_PROBFILE='ctb7_init.txt', smooth=0):
             if good_Turing_freq[i] == 0:
                 good_Turing_freq[i] = theta[0] * math.pow(i, theta[1])
         # Print the freq after fit gap
-        print good_Turing_freq
+        # print good_Turing_freq
         dr = [0.0]
-        for i range(1, 10):
-            r = (i + 1) * good_Turing_freq[i+1] / good_Turing_freq[i]
-            dr[0] += good_Turing_freq[i] - r
+        for i in range(1, 10):
+            r = (i) * good_Turing_freq[i + 1] / good_Turing_freq[i]
+            dr[0] += (i - r)
             dr.append(r)
+            # print "%d: r=%.4f g=%.4f" % (i, r, good_Turing_freq[i])
     print "Writing start log_probability to the file."
     i_out.write("#INIT_PROB log_probability\n")
 
-    for tag in tag_freq.keys():
+    for tag in TAGSET:
+        freq = tag_freq[tag]
         i_out.write(tag + ' ')
         if smooth == 0:
             # No smoothing tech used
-            if tag_freq[tag] == 0:
+            if freq == 0:
                 i_out.write('-inf\n')
             else:
-                freq = float(tag_freq[tag])
-                i_out.write('%.4f\n' % (math.log(freq / freq_sum)))
+                i_out.write('%.4f\n' % (math.log(freq * 1.0 / freq_sum)))
         elif smooth == 1:
             # Laplace smoothing
-            freq = tag_freq[tag]
             log_p = math.log((freq + 1.0) / (freq_sum + 37.0))
             i_out.write('%.4f\n' % log_p)
         elif smooth == 2:
             # Good-Turing smoothing
-            if tag_freq[tag] < 10:
-                freq = tag_freq[tag]
+            # print "freq:",freq,type(freq)
+            if freq < 10:
+                # print "freq:",freq,type(freq)
                 i_out.write('%.4f\n' % (math.log(dr[freq] / freq_sum)))
             else:
-                i_out.write('%.4f\n' % (math.log(freq / freq_sum)))
+                # print "Freq:",freq,type(freq)
+                i_out.write('%.4f\n' % (math.log(freq * 1.0 / freq_sum)))
 
 # def calcLogProb(INIT_PROBFILE='ctb7_init.txt', TRAN_PROBFILE='ctb7_tran.txt',
 #                 TAGFREQFILE='ctb7_tagFreq.txt', WORDFREQFILE='ctb7_words.txt'):
 #     """
 #     """
 #     return
+
 
 def curveFit(data):
     lnx = []
@@ -175,31 +178,25 @@ def curveFit(data):
         if data[i] != 0:
             lnx.append(math.log(i))
             lny.append(math.log(data[i]))
-    mean_x = sum(lnx)/len(lnx)
-    mean_y = sum(lny)/len(lny)
+    mean_x = sum(lnx) / len(lnx)
+    mean_y = sum(lny) / len(lny)
     lxx = sum((x - mean_x)**2 for x in lnx)
     lxy = 0.0
     for i in range(len(lnx)):
         lxy += (lnx[i] - mean_x) * (lny[i] - mean_y)
 
-    print "lnx:", lnx
-    print "lny:", lny
-    print "lxx:", lxx
-    print "lxy:", lxy
+    # print "lnx:", lnx
+    # print "lny:", lny
+    # print "lxx:", lxx
+    # print "lxy:", lxy
     b1 = lxy / lxx
     b0 = mean_y - mean_x * b1
-    print "b0: ", b0
-    print "b1: ", b1
+    # print "b0: ", b0
+    # print "b1: ", b1
     return [math.exp(b0), b1]
 
 if __name__ == '__main__':
     # getHmmModelInfo()
     # saveHMM()
-    # calcInitProb(smooth=1)
-    a = {0: 9, 1: 2, 2: 0, 3: 1, 4: 1, 5: 1, 6: 1, 7: 0, 8: 0}
-    print a
-    b = curveFit(a)
-    a[2] = b[0] * math.pow(2, b[1])
-    a[7] = b[0] * math.pow(7, b[1])
-    a[8] = b[0] * math.pow(8, b[1])
-    print a
+    readTagFile()
+    calcInitProb(smooth=2)
