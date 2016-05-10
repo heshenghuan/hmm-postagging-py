@@ -31,6 +31,25 @@ def readTagFile(TAGFILE='ctb7_tags.txt'):
     tag_input.close()
 
 
+def readTagFreq(TAGFREQFILE='ctb7_tagFreq.txt', T=10):
+    tag_freq = {}
+    N = {}
+    for i in range(T + 1):
+        N[i] = 0.
+    infile = codecs.open(TAGFREQFILE, mode='r', encoding='utf8')
+    is_first_line = True
+    for line in infile.readlines():
+        if is_first_line:
+            is_first_line = False
+            continue
+        raw = line.strip().split()
+        tag_freq[raw[0]] = int(raw[1])
+        if int(raw[1]) <= T:
+            N[int(raw[1])] += 1
+    infile.close()
+    return tag_freq, N
+
+
 def getHmmModelInfo(CORPUSFILE='ctb7_update.txt'):
     readTagFile()
     if len(TAGSET) != 37:
@@ -101,6 +120,85 @@ def saveFreqency(INIT_PROBFILE='ctb7_init.txt', TRAN_PROBFILE='ctb7_tran.txt', T
     print "Finished."
 
 
+def calcOmitProb(TAGFREQFILE='ctb7_tagFreq.txt', WORDFILE='ctb7_words.txt', smooth=0, T=10):
+    tag_freq, N = readTagFreq(TAGFREQFILE)
+    infile = codecs.open(WORDFILE, mode='r', encoding='utf8')
+    omitfile = codecs.open('ctb7_omit.txt', mode='w', encoding='utf8')
+    omitfile.write("#Omit probability\n")
+    words = {}
+    is_first_line = True
+    for line in infile.readlines():
+        if is_first_line:
+            is_first_line = False
+            continue
+        raw = line.strip().split()
+        w = raw[0]
+        words[w] = {}
+        for i in range(1, len(raw)):
+            item = raw[i].split(":")
+            tag = item[0]
+            num = int(item[1])
+            words[w][tag] = num
+
+    zeroProbFile = codecs.open('ctb7_zeroprob.txt', mode='w', encoding='utf8')
+    zeroProbFile.write("#Zero probability for each tag\n")
+    tagsum = sum(tag_freq[k] for k in tag_freq.keys())
+    if smooth == 2:
+        curveTag = sum(1 if N[i] != 0 else 0 for i in range(1, T + 1))
+        if curveTag > 1:
+            theta = curveFit(N, T)
+            # print theta
+            dr = KatzGoodTuring(theta, N, T)
+            # print dr
+        else:
+            dr = [1e-6 * tag_freq[tag]]
+            for i in range(1, T):
+                dr.append(float(i))
+    for tag in TAGSET:
+        freq = tag_freq[tag]
+        if smooth == 0:
+            p = math.log(freq * 1.0 / tagsum)
+            zeroProbFile.write(tag + " %.4f\n" % p)
+        elif smooth == 1:
+            p = math.log((freq + 1.0) / (tagsum + 37.0))
+            zeroProbFile.write(tag + " %.4f\n" % p)
+        elif smooth == 2:
+            if freq < T:
+                p = math.log((dr[freq]) / tagsum)
+            else:
+                p = math.log(freq * 1.0 / tagsum)
+            zeroProbFile.write(tag + " %.4f\n" % p)
+    zeroProbFile.close()
+
+    # write omit
+    for w in words.keys():
+        omitfile.write(w + ' ')
+        for tag in words[w].keys():
+            num = words[w][tag]
+            if smooth == 0:
+                omitfile.write(tag)
+                omitfile.write(':%.4f ' %
+                               (math.log(num * 1.0 / tag_freq[tag])))
+            elif smooth == 1:
+                # Laplace smoothing
+                log_p = math.log((num + 1.0) / (tag_freq[tag] + 37.0))
+                omitfile.write('%s:%.4f ' % (tag, log_p))
+            elif smooth == 2:
+                # Good-Turing smoothing
+                omitfile.write(tag)
+                # if num < T:
+                #     print N[tag]
+                #     print dr[tag]
+                #     print num,tag_freq[tag]
+                #     omitfile.write(':%.4f ' % (math.log(dr[tag][num] / tag_freq[tag])))
+                # else:
+                omitfile.write(':%.4f ' %
+                               (math.log(num * 1.0 / tag_freq[tag])))
+        omitfile.write('\n')
+    omitfile.close()
+    infile.close()
+
+
 def calcTransProb(TRAN_PROBFILE='ctb7_tran.txt', smooth=0, T=10):
     t_input = codecs.open(TRAN_PROBFILE, mode='r', encoding='utf8')
     t_out = codecs.open('ctb7_tranprob.txt', mode='w', encoding='utf8')
@@ -142,7 +240,7 @@ def calcTransProb(TRAN_PROBFILE='ctb7_tran.txt', smooth=0, T=10):
                 print "line %d does not have enough data to calculate." % ll
                 dr = [1e-6 * freq_sum]
                 for i in range(1, T):
-                    dr.append(i)
+                    dr.append(float(i))
 
         t_out.write(tag1 + ' ')
         for tag in TAGSET:
@@ -271,4 +369,5 @@ if __name__ == '__main__':
     # saveHMM()
     readTagFile()
     # calcInitProb(smooth=2, T=10)
-    calcTransProb(smooth=2, T=10)
+    # calcTransProb(smooth=2, T=10)
+    calcOmitProb(smooth=1, T=10)
