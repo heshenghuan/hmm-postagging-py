@@ -74,8 +74,7 @@ def getHmmModelInfo(CORPUSFILE='ctb7_update.txt'):
     src_file.close()
 
 
-def saveHMM(INIT_PROBFILE='ctb7_init.txt', TRAN_PROBFILE='ctb7_tran.txt',
-            TAGFREQFILE='ctb7_tagFreq.txt'):
+def saveFreqency(INIT_PROBFILE='ctb7_init.txt', TRAN_PROBFILE='ctb7_tran.txt', TAGFREQFILE='ctb7_tagFreq.txt'):
     i_out = codecs.open(INIT_PROBFILE, mode='w', encoding='utf8')
     t_out = codecs.open(TRAN_PROBFILE, mode='w', encoding='utf8')
     f_out = codecs.open(TAGFREQFILE, mode='w', encoding='utf8')
