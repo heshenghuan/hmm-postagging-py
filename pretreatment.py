@@ -102,16 +102,85 @@ def saveHMM(INIT_PROBFILE='ctb7_init.txt', TRAN_PROBFILE='ctb7_tran.txt',
     print "Finished."
 
 
-def calcInitProb(INIT_PROBFILE='ctb7_init.txt', smooth=0):
+def calcTransProb(TRAN_PROBFILE='ctb7_tran.txt', smooth=0, T=10):
+    t_input = codecs.open(TRAN_PROBFILE, mode='r', encoding='utf8')
+    t_out = codecs.open('ctb7_tranprob.txt', mode='w', encoding='utf8')
+    print "Calculate the transition probability."
+    t_out.write("#TRAN_PROB log_probability\n")
+    is_first_line = True
+    freq_sum = 0.
+    tag_freq = {}
+    N = {}
+    ll = 0
+    for line in t_input.readlines():
+        ll += 1
+        if is_first_line:
+            is_first_line = False
+            continue
+        for i in range(T + 1):
+            N[i] = 0.
+        freq_sum = 0.
+        tag_freq = {}
+        raw = line.strip().split()
+        tag1 = raw[0]
+        for i in range(1, len(raw)):
+            tag2, num = raw[i].split(':')
+            num = int(num)
+            freq_sum += num
+            tag_freq[tag2] = num
+            if num <= T:
+                N[num] += 1
+        # print "%d:" % ll,
+        # print N
+        if smooth == 2:
+            curveTag = sum(1 if N[i] != 0 else 0 for i in range(1, T + 1))
+            if curveTag > 1 and freq_sum > 30:
+                theta = curveFit(N, T)
+                dr = KatzGoodTuring(theta, N, T)
+                # print dr
+            else:
+                # print the line that dont have enough data
+                print "line %d does not have enough data to calculate." % ll
+                dr = [1e-6 * freq_sum]
+                for i in range(1, T):
+                    dr.append(i)
+
+        t_out.write(tag1 + ' ')
+        for tag in TAGSET:
+            freq = tag_freq[tag]
+            t_out.write(tag + ':')
+            if smooth == 0:
+                # No smoothing tech used
+                if freq == 0:
+                    t_out.write('-inf ')
+                else:
+                    t_out.write('%.4f ' % (math.log(freq * 1.0 / freq_sum)))
+            elif smooth == 1:
+                # Laplace smoothing
+                log_p = math.log((freq + 1.0) / (freq_sum + 37.0))
+                t_out.write('%.4f ' % log_p)
+            elif smooth == 2:
+                # Good-Turing smoothing
+                if freq < T:
+                    t_out.write('%.4f ' % (math.log(dr[freq] / freq_sum)))
+                else:
+                    t_out.write('%.4f ' % (math.log(freq * 1.0 / freq_sum)))
+        t_out.write('\n')
+    print "Finished calculating transition probability."
+    t_input.close()
+    t_out.close()
+
+
+def calcInitProb(INIT_PROBFILE='ctb7_init.txt', smooth=0, T=10):
     i_input = codecs.open(INIT_PROBFILE, mode='r', encoding='utf8')
     i_out = codecs.open('ctb7_initprob.txt', mode='w', encoding='utf8')
     print "Calculate the start probability."
     is_first_line = True
     freq_sum = 0.
     tag_freq = {}
-    good_Turing_freq = {}
-    for i in range(11):
-        good_Turing_freq[i] = 0.
+    N = {}  # the good turing freq statistic
+    for i in range(T + 1):
+        N[i] = 0.
     for line in i_input.readlines():
         if is_first_line:
             is_first_line = False
@@ -120,25 +189,15 @@ def calcInitProb(INIT_PROBFILE='ctb7_init.txt', smooth=0):
         num = int(raw[1])
         tag_freq[raw[0]] = num
         freq_sum += num
-        if num <= 10:
-            good_Turing_freq[num] += 1
+        if num <= T:
+            N[num] += 1
 
-    # print good_Turing_freq
+    # print N
     if smooth == 2:
         # Good-Turing smoothing, need to fit the gap between freq
-        theta = curveFit(good_Turing_freq)
-        for i in range(1, 11):
-            # if good_Turing_freq[i] == 0:
-            good_Turing_freq[i] = theta[0] * math.pow(i, theta[1])
-        # Print the freq after fit gap
-        # print good_Turing_freq
-        dr = [0.0]
-        for i in range(1, 10):
-            r = (i) * good_Turing_freq[i + 1] / good_Turing_freq[i]
-            dr[0] += (i - r) / i
-            dr.append(r)
-            # print "%d: r=%.4f g=%.4f" % (i, r, good_Turing_freq[i])
-    # print dr
+        theta = curveFit(N, T)
+        dr = KatzGoodTuring(theta, N, T)
+        # print dr
     print "Writing start log_probability to the file."
     i_out.write("#INIT_PROB log_probability\n")
 
@@ -157,25 +216,37 @@ def calcInitProb(INIT_PROBFILE='ctb7_init.txt', smooth=0):
             i_out.write('%.4f\n' % log_p)
         elif smooth == 2:
             # Good-Turing smoothing
-            # print "freq:",freq,type(freq)
-            if freq < 10:
-                # print "freq:",freq,type(freq)
+            if freq < T:
                 i_out.write('%.4f\n' % (math.log(dr[freq] / freq_sum)))
             else:
-                # print "Freq:",freq,type(freq)
                 i_out.write('%.4f\n' % (math.log(freq * 1.0 / freq_sum)))
-
-# def calcLogProb(INIT_PROBFILE='ctb7_init.txt', TRAN_PROBFILE='ctb7_tran.txt',
-#                 TAGFREQFILE='ctb7_tagFreq.txt', WORDFREQFILE='ctb7_words.txt'):
-#     """
-#     """
-#     return
+    print "Finished calculating start probability."
+    i_input.close()
+    i_out.close()
 
 
-def curveFit(data):
+def KatzGoodTuring(theta, N, T):
+    K = T - 1
+    for i in range(1, T + 1):
+        # use fitted curve value to replace the origin value
+        N[i] = theta[0] * math.pow(i, theta[1])
+    # Print the freq after fit gap
+    # print N
+    dr = [0.0]
+    for i in range(1, T):
+        # r = (i + 1) * N[i + 1] / N[i]
+        r = ((i + 1) * N[i + 1] / N[i] - i *
+             ((1 + K) * N[K]) / N[1]) / (1 - (1 + K) * N[K] / N[1])
+        dr[0] += (i - r)
+        dr.append(r)
+        # print "%d: r=%.4f g=%.4f" % (i, r, N[i])
+    return dr
+
+
+def curveFit(data, T):
     lnx = []
     lny = []
-    for i in range(1, 11):
+    for i in range(1, T + 1):
         if data[i] != 0:
             lnx.append(math.log(i))
             lny.append(math.log(data[i]))
@@ -200,4 +271,5 @@ if __name__ == '__main__':
     # getHmmModelInfo()
     # saveHMM()
     readTagFile()
-    calcInitProb(smooth=2)
+    # calcInitProb(smooth=2, T=10)
+    calcTransProb(smooth=2, T=10)
