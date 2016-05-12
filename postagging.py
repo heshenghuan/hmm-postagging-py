@@ -19,6 +19,7 @@ INIT_PROB = {}
 OMIT_PROB = {}
 ZERO_PROB = {}
 CharTypeMap = CharType.CharType()
+ZERO = math.log(1e-6) 
 
 def readResource():
     print "Reading Character type information."
@@ -104,7 +105,78 @@ def readOmitProb(OMITPROBFILE='prob/ctb7_omit.txt', ZEROPROBFILE='prob/ctb7_zero
 
 
 def viterbiDecode(words):
-    return 1
+    T = len(words)
+    prb, prb_max = 0., 0.
+    toward = []
+    back = []
+
+    for i in range(T):
+        toward.append({})
+        back.append({})
+        for j in TAGSET:
+            toward[i][j] = float('-inf')
+            back[i][j] = ' '
+
+    # run viterbi
+    omit_prob = getOmitProb(words[0])
+    for s in TAGSET:
+        toward[0][s] = INIT_PROB[s] + omit_prob[s]            
+        back[0][s] = 'end'
+    # toward algorithm
+    for t in range(1, T):
+        omit_prob = getOmitProb(words[t])
+        for s in TAGSET:
+            prb = ZERO
+            prb_max = ZERO
+            state_max = 'NN'
+            for i in TAGSET:
+                prb = toward[t-1][i] + TRAN_PROB[i][s] + omit_prob[s]
+                if prb > prb_max:
+                    prb_max = prb
+                    state_max = i
+            toward[t][s] = prb_max
+            back[t][s] = state_max
+    #backward algorithm to get the best tag sequence
+    index = T-1
+    taglist = []
+    prb_max = ZERO
+    state_max = ''
+    for s in self.state:
+        prb = toward[T-1][s]
+        #print s, prb
+        if prb > prb_max:
+            prb_max = prb
+            state_max = s
+    taglist.append(state_max)
+    while index >= 1:
+        pre_state = back[index][taglist[0]]
+        taglist.insert(0, pre_state)
+        index -= 1
+    return taglist
+
+
+def getOmitProb(word):
+    prb = {}
+    for s in TAGSET:
+        prb[s] = ZERO
+    if OMIT_PROB.has_key(word):
+        for key in OMIT_PROB[word].keys():
+            prb[key] = OMIT_PROB[word][key]
+    else:
+        if len(word) == 1:
+            if CharType.getPuncType(word) == 1:
+                prb ['PU'] = 0.0
+            else:
+                typ = CharType.getCharType(word)
+                if typ == 0 or typ == 1 or typ == 2:
+                    prb['CN'] = 0.0
+                elif typ == 4:
+                    prb['NT'] = -3.9979
+                else:
+                    prb = ZERO_PROB
+        else:
+            prb = ZERO_PROB
+    return prb
 
 if __name__ == '__main__':
     readTagFile()
