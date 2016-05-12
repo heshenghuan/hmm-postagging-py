@@ -10,6 +10,7 @@ http://github.com/heshenghuan
 import codecs
 import math
 import sys
+import CharType
 
 TAGSET = set()
 TAGFREQ = {}
@@ -17,9 +18,16 @@ TRAN_PROB = {}
 INIT_PROB = {}
 OMIT_PROB = {}
 ZERO_PROB = {}
+CharTypeMap = CharType.CharType()
+
+def readResource():
+    print "Reading Character type information."
+    CharTypeMap = CharType.CharType()
+    CharTypeMap.initialize('./resource/')
+    print "Reading Character type information OK.\n"
 
 
-def readTagFile(TAGFILE='ctb7_tags.txt'):
+def readTagFile(TAGFILE='prob/ctb7_tags.txt'):
     TAGSET.clear()
     tag_input = codecs.open(TAGFILE, mode='r', encoding='utf8')
     is_first_line = True
@@ -33,9 +41,9 @@ def readTagFile(TAGFILE='ctb7_tags.txt'):
     tag_input.close()
 
 
-def readTranProb(TRANPROBFILE='ctb7_tranprob.txt'):
+def readTranProb(TRANPROBFILE='prob/ctb7_tranprob.txt'):
     TRAN_PROB.clear()
-    print "\nReading transition probability."
+    print "Reading transition probability."
     infile = codecs.open(TRANPROBFILE, mode='r', encoding='utf8')
     is_first_line = True
     for line in infile.readlines():
@@ -51,9 +59,9 @@ def readTranProb(TRANPROBFILE='ctb7_tranprob.txt'):
     print "Read Transition probability matrix OK.\n"
 
 
-def readInitProb(INITPROBFILE='ctb7_initprob.txt'):
+def readInitProb(INITPROBFILE='prob/ctb7_initprob.txt'):
     INIT_PROB.clear()
-    print "\nReading Start probability."
+    print "Reading Start probability."
     infile = codecs.open(INITPROBFILE, mode='r', encoding='utf8')
     is_first_line = True
     for line in infile.readlines():
@@ -66,10 +74,10 @@ def readInitProb(INITPROBFILE='ctb7_initprob.txt'):
     print "Read Start probability matrix OK.\n"
 
 
-def readOmitProb(OMITPROBFILE='ctb7_omit.txt', ZEROPROBFILE='ctb7_zeroprob_katz.txt'):
+def readOmitProb(OMITPROBFILE='prob/ctb7_omit.txt', ZEROPROBFILE='prob/ctb7_zeroprob_katz.txt'):
     OMIT_PROB.clear()
     ZERO_PROB.clear()
-    print "\nReading Omission probability."
+    print "Reading Omission probability."
     infile = codecs.open(OMITPROBFILE, mode='r', encoding='utf8')
     is_first_line = True
     for line in infile.readlines():
@@ -94,8 +102,13 @@ def readOmitProb(OMITPROBFILE='ctb7_omit.txt', ZEROPROBFILE='ctb7_zeroprob_katz.
     zinfile.close()
     print "Read Omission & zero probability matrix OK.\n"
 
+
+def viterbiDecode(words):
+    return 1
+
 if __name__ == '__main__':
     readTagFile()
-    readTranProb('ctb7_tranprob.txt')
-    readInitProb('ctb7_initprob_katz.txt')
+    readResource()
+    readTranProb('prob/ctb7_tranprob.txt')
+    readInitProb('prob/ctb7_initprob_katz.txt')
     readOmitProb()
