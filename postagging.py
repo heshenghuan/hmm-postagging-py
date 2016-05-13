@@ -19,7 +19,8 @@ INIT_PROB = {}
 OMIT_PROB = {}
 ZERO_PROB = {}
 CharTypeMap = CharType.CharType()
-ZERO = math.log(1e-6) 
+ZERO = math.log(1e-6)
+
 
 def readResource():
     print "Reading Character type information."
@@ -118,32 +119,36 @@ def viterbiDecode(words):
             back[i][j] = ' '
 
     # run viterbi
+    # print words[0]
     omit_prob = getOmitProb(words[0])
+    # print omit_prob
     for s in TAGSET:
-        toward[0][s] = INIT_PROB[s] + omit_prob[s]            
+        toward[0][s] = INIT_PROB[s] + omit_prob[s]
         back[0][s] = 'end'
     # toward algorithm
     for t in range(1, T):
         omit_prob = getOmitProb(words[t])
+        # print omit_prob
         for s in TAGSET:
-            prb = ZERO
-            prb_max = ZERO
+            prb = float('-inf')
+            prb_max = float('-inf')
             state_max = 'NN'
             for i in TAGSET:
-                prb = toward[t-1][i] + TRAN_PROB[i][s] + omit_prob[s]
+                prb = toward[t - 1][i] + TRAN_PROB[i][s] + omit_prob[s]
                 if prb > prb_max:
                     prb_max = prb
                     state_max = i
             toward[t][s] = prb_max
             back[t][s] = state_max
-    #backward algorithm to get the best tag sequence
-    index = T-1
+            # print prb_max, state_max
+    # backward algorithm to get the best tag sequence
+    index = T - 1
     taglist = []
-    prb_max = ZERO
+    prb_max = float('-inf')
     state_max = ''
-    for s in self.state:
-        prb = toward[T-1][s]
-        #print s, prb
+    for s in TAGSET:
+        prb = toward[T - 1][s]
+        # print s, prb
         if prb > prb_max:
             prb_max = prb
             state_max = s
@@ -164,10 +169,10 @@ def getOmitProb(word):
             prb[key] = OMIT_PROB[word][key]
     else:
         if len(word) == 1:
-            if CharType.getPuncType(word) == 1:
-                prb ['PU'] = 0.0
+            if CharTypeMap.getPuncType(word) == 1:
+                prb['PU'] = 0.0
             else:
-                typ = CharType.getCharType(word)
+                typ = CharTypeMap.getCharType(word)
                 if typ == 0 or typ == 1 or typ == 2:
                     prb['CN'] = 0.0
                 elif typ == 4:
@@ -178,9 +183,38 @@ def getOmitProb(word):
             prb = ZERO_PROB
     return prb
 
+
+def posTagFile(FILE, OUTFILE):
+    infile = codecs.open(FILE, mode='r', encoding='utf8')
+    outfile = codecs.open(OUTFILE, mode='w', encoding='utf8')
+    num = 0
+    for line in infile.readlines():
+        raw = line.strip()
+        num += 1
+        if num % 100 == 0:
+            print '.',
+            if num % 1000 == 0:
+                print '\t%d sentences.' % num
+        if raw == "":
+            outfile.write('\n')
+            continue
+        words = raw.split()
+        tags = posTagSent(words)
+        for i in range(len(words)):
+            outfile.write(words[i] + '/' + tags[i] + ' ')
+        outfile.write('\n')
+    print "POS tagging finished. Totally %d lines." % num
+    infile.close()
+    outfile.close()
+
+
+def posTagSent(words):
+    return viterbiDecode(words)
+
 if __name__ == '__main__':
     readTagFile()
     readResource()
     readTranProb('prob/ctb7_tranprob.txt')
     readInitProb('prob/ctb7_initprob_katz.txt')
     readOmitProb()
+    posTagFile('./resource/pku_test_gold.utf8', './resource/test')
