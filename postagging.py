@@ -19,7 +19,7 @@ INIT_PROB = {}
 OMIT_PROB = {}
 ZERO_PROB = {}
 CharTypeMap = CharType.CharType()
-ZERO = math.log(1e-6)
+ZERO = math.log(1e-7)  # this value liked to be adjust more
 
 
 def readResource():
