@@ -17,7 +17,7 @@ TRAN_PROB = {}
 INIT_PROB = {}
 
 
-def readTagFile(TAGFILE='ctb7_tags.txt'):
+def readTagFile(TAGFILE='prob/ctb7_tags.txt'):
     TAGSET.clear()
     tag_input = codecs.open(TAGFILE, mode='r', encoding='utf8')
     is_first_line = True
@@ -120,6 +120,39 @@ def saveFreqency(INIT_PROBFILE='ctb7_init.txt', TRAN_PROBFILE='ctb7_tran.txt', T
     print "Finished."
 
 
+def calcZeroProb(TAGFREQFILE='prob/ctb7_tagFreq.txt', smooth=0, T=10):
+    tag_freq, N = readTagFreq(TAGFREQFILE)
+    zeroProbFile = codecs.open('ctb7_zeroprob.txt', mode='w', encoding='utf8')
+    zeroProbFile.write("#Zero probability for each tag\n")
+    tagsum = sum(tag_freq[k] for k in tag_freq.keys())
+    if smooth == 2:
+        curveTag = sum(1 if N[i] != 0 else 0 for i in range(1, T + 1))
+        if curveTag > 1:
+            theta = curveFit(N, T)
+            # print theta
+            dr = KatzGoodTuring(theta, N, T)
+            # print dr
+        else:
+            dr = [1e-6 * tag_freq[tag]]
+            for i in range(1, T):
+                dr.append(float(i))
+    for tag in TAGSET:
+        freq = tag_freq[tag] if tag_freq.has_key(tag) else 1
+        if smooth == 0:
+            p = math.log(freq * 1.0 / tagsum)
+            zeroProbFile.write(tag + " %.4f\n" % p)
+        elif smooth == 1:
+            p = math.log((freq + 1.0) / (tagsum + 37.0))
+            zeroProbFile.write(tag + " %.4f\n" % p)
+        elif smooth == 2:
+            if freq < T:
+                p = math.log((dr[freq]) / tagsum)
+            else:
+                p = math.log(freq * 1.0 / tagsum)
+            zeroProbFile.write(tag + " %.4f\n" % p)
+    zeroProbFile.close()
+
+
 def calcOmitProb(TAGFREQFILE='ctb7_tagFreq.txt', WORDFILE='ctb7_words.txt', smooth=0, T=10):
     tag_freq, N = readTagFreq(TAGFREQFILE)
     infile = codecs.open(WORDFILE, mode='r', encoding='utf8')
@@ -139,36 +172,6 @@ def calcOmitProb(TAGFREQFILE='ctb7_tagFreq.txt', WORDFILE='ctb7_words.txt', smoo
             tag = item[0]
             num = int(item[1])
             words[w][tag] = num
-
-    zeroProbFile = codecs.open('ctb7_zeroprob.txt', mode='w', encoding='utf8')
-    zeroProbFile.write("#Zero probability for each tag\n")
-    tagsum = sum(tag_freq[k] for k in tag_freq.keys())
-    if smooth == 2:
-        curveTag = sum(1 if N[i] != 0 else 0 for i in range(1, T + 1))
-        if curveTag > 1:
-            theta = curveFit(N, T)
-            # print theta
-            dr = KatzGoodTuring(theta, N, T)
-            # print dr
-        else:
-            dr = [1e-6 * tag_freq[tag]]
-            for i in range(1, T):
-                dr.append(float(i))
-    for tag in TAGSET:
-        freq = tag_freq[tag]
-        if smooth == 0:
-            p = math.log(freq * 1.0 / tagsum)
-            zeroProbFile.write(tag + " %.4f\n" % p)
-        elif smooth == 1:
-            p = math.log((freq + 1.0) / (tagsum + 37.0))
-            zeroProbFile.write(tag + " %.4f\n" % p)
-        elif smooth == 2:
-            if freq < T:
-                p = math.log((dr[freq]) / tagsum)
-            else:
-                p = math.log(freq * 1.0 / tagsum)
-            zeroProbFile.write(tag + " %.4f\n" % p)
-    zeroProbFile.close()
 
     # write omit
     for w in words.keys():
@@ -365,9 +368,8 @@ def curveFit(data, T):
     return [math.exp(b0), b1]
 
 if __name__ == '__main__':
-    # getHmmModelInfo()
-    # saveHMM()
     readTagFile()
     # calcInitProb(smooth=2, T=10)
     # calcTransProb(smooth=2, T=10)
-    calcOmitProb(smooth=1, T=10)
+    # calcOmitProb(smooth=1, T=10)
+    calcZeroProb(TAGFREQFILE='prob/TAG_FREQUNCY.txt', smooth=2, T=10)
