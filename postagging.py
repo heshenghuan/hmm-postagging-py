@@ -217,4 +217,4 @@ if __name__ == '__main__':
     readTranProb('prob/ctb7_tranprob.txt')
     readInitProb('prob/ctb7_initprob_katz.txt')
     readOmitProb()
-    posTagFile('./resource/pku_test_gold.utf8', './resource/test')
+    posTagFile(sys.argv[1], sys.argv[2])
