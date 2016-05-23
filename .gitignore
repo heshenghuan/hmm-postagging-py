@@ -2,4 +2,6 @@ ctb7_*
 
 resource/*
 
+prob/*
+
 *.pyc
