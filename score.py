@@ -75,4 +75,8 @@ def score(GOLDFILE, GIVEFILE, OUTFILE):
 
 if __name__ == '__main__':
     # print sys.argv
+    if len(sys.argv) < 4:
+        print "ERROR: Not enough parameters!"
+        print "Usage: python score.py gold_stand_file test_file score_log_file"
+        sys.exit(0)
     score(sys.argv[1], sys.argv[2], sys.argv[3])
