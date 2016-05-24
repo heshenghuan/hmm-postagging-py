@@ -8,6 +8,7 @@ http://github.com/heshenghuan
 """
 
 import codecs
+import sys
 
 
 def convert(filepath, outfile):
@@ -33,8 +34,12 @@ def convert(filepath, outfile):
             if num % 2000 == 0:
                 print
 
-    print "Convert done! Totally %d sentences" % num
+    print "\nConvert done! Totally %d sentences" % num
 
 
 if __name__ == '__main__':
-    convert("ctb7_update.txt", "ctb7_update_noPOS.utf8")
+    if len(sys.argv) < 3:
+        print "ERROR: Not enough parameters!"
+        print "Usage: python convert.py corpus_with_pos corpus_without_pos"
+        sys.exit(0)
+    convert(sys.argv[1], sys.argv[2])
