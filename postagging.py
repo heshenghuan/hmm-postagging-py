@@ -212,6 +212,10 @@ def posTagSent(words):
     return viterbiDecode(words)
 
 if __name__ == '__main__':
+    if len(sys.argv) < 3:
+        print "ERROR: Not enough parameters."
+        print "USAGE: python postagging.py <corpus> <output>"
+        sys.exit(0)
     readTagFile()
     readResource()
     readTranProb('prob/ctb7_tranprob.txt')
